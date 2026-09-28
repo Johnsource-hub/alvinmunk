@@ -36,7 +36,9 @@ const BUMP_EXTEND: u32 = 2_592_000; // ~150 days
 const BUMP_THRESHOLD: u32 = BUMP_EXTEND - DAY_LEDGERS;
 const DAY_SECS: u64 = 86_400;
 const MAX_VOUCH_PER_DAY: u32 = 20;
-// Matches the UI's 60 Unicode-code-point limit at up to 4 UTF-8 bytes per code point.
+// Longest vouch note, in UTF-8 BYTES (`String::len` counts bytes, not characters). 240 is
+// the web app's 60-character limit at UTF-8's worst case of 4 bytes per character, so any
+// note it lets through fits. Mirrored by `VOUCH_NOTE_MAX_BYTES` in apps/web/src/lib/reputation.ts.
 const MAX_NOTE_BYTES: u32 = 240;
 
 const STARTER_SOCIAL: u64 = 20; // every new wallet's starter Social XP (funds first stakes)
@@ -186,7 +188,9 @@ impl ReputationContract {
     /// `from` mints a half-card bound to `claim_hash` (= sha256 of a secret held in
     /// the share link). Escrows `VOUCH_STAKE` Social XP from `from` (refunded on a
     /// timely claim, else slashed). New wallets get `STARTER_SOCIAL` first so the
-    /// first vouch is free. Per-day cap applies. Returns the vouch id.
+    /// first vouch is free. Per-day cap applies. `note` is at most `MAX_NOTE_BYTES` bytes
+    /// of UTF-8, else `NoteTooLong`: it is stored in the vouch, which every claim rewrites.
+    /// Returns the vouch id.
     pub fn mint_vouch(env: Env, from: Address, claim_hash: BytesN<32>, note: String) -> u64 {
         from.require_auth();
         if note.len() > MAX_NOTE_BYTES {
