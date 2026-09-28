@@ -1,4 +1,6 @@
 #![cfg(test)]
+extern crate std;
+
 use super::*;
 use soroban_sdk::{
     testutils::{
@@ -23,6 +25,31 @@ fn secret_and_hash(env: &Env, fill: u8) -> (Bytes, BytesN<32>) {
     let secret = Bytes::from_array(env, &[fill; 32]);
     let hash = env.crypto().sha256(&secret).to_bytes();
     (secret, hash)
+}
+
+#[test]
+fn mint_vouch_accepts_note_at_240_utf8_bytes() {
+    let (env, client, _admin) = setup();
+    let alice = Address::generate(&env);
+    let (_secret, hash) = secret_and_hash(&env, 1);
+    let note = String::from_str(&env, &"💧".repeat(60));
+
+    let id = client.mint_vouch(&alice, &hash, &note);
+
+    assert_eq!(client.get_vouch(&id).unwrap().note.len(), MAX_NOTE_BYTES);
+}
+
+#[test]
+fn mint_vouch_rejects_note_at_241_utf8_bytes() {
+    let (env, client, _admin) = setup();
+    let alice = Address::generate(&env);
+    let (_secret, hash) = secret_and_hash(&env, 2);
+    let note = String::from_str(&env, &std::format!("{}é", "a".repeat(239)));
+
+    assert_eq!(
+        client.try_mint_vouch(&alice, &hash, &note),
+        Err(Ok(contract_err(Error::NoteTooLong)))
+    );
 }
 
 #[test]

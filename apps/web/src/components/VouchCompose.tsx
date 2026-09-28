@@ -17,6 +17,9 @@ import { useTranslations } from '@/lib/i18n';
 import { track, trackError } from '@/lib/track';
 import { toast } from '@/components/ui/toaster';
 
+// 60 Unicode code points × at most 4 UTF-8 bytes matches the contract's 240-byte cap.
+const MAX_NOTE_CHARACTERS = 60;
+
 // Reputation contract error codes that can surface on mint_vouch (mirrors the Error enum).
 // Keys map to i18n keys so they're translated too.
 function buildVouchErrors(t: (key: string) => string): Record<number, string> {
@@ -24,6 +27,7 @@ function buildVouchErrors(t: (key: string) => string): Record<number, string> {
     6: t('vouch.error.self'),
     9: t('vouch.error.limit'),
     11: t('vouch.error.xp'),
+    12: t('vouch.error.noteTooLong'),
   };
 }
 
@@ -100,8 +104,8 @@ export function VouchCompose() {
         </p>
         <Textarea
           value={note}
-          onChange={(e) => setNote(e.target.value)}
-          maxLength={60}
+          onChange={(e) => setNote(Array.from(e.target.value).slice(0, MAX_NOTE_CHARACTERS).join(''))}
+          maxLength={MAX_NOTE_CHARACTERS * 2}
           rows={2}
           placeholder={t('vouch.compose.placeholder')}
           className="mb-3"

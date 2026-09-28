@@ -36,6 +36,8 @@ const BUMP_EXTEND: u32 = 2_592_000; // ~150 days
 const BUMP_THRESHOLD: u32 = BUMP_EXTEND - DAY_LEDGERS;
 const DAY_SECS: u64 = 86_400;
 const MAX_VOUCH_PER_DAY: u32 = 20;
+// Matches the UI's 60 Unicode-code-point limit at up to 4 UTF-8 bytes per code point.
+const MAX_NOTE_BYTES: u32 = 240;
 
 const STARTER_SOCIAL: u64 = 20; // every new wallet's starter Social XP (funds first stakes)
 const VOUCH_STAKE: u64 = 5; // Social XP escrowed per mint; refunded on a timely claim, else slashed
@@ -59,6 +61,7 @@ pub enum Error {
     DailyCapReached = 9,
     NotExpired = 10,
     InsufficientStake = 11,
+    NoteTooLong = 12,
 }
 
 #[contracttype]
@@ -180,6 +183,9 @@ impl ReputationContract {
     /// first vouch is free. Per-day cap applies. Returns the vouch id.
     pub fn mint_vouch(env: Env, from: Address, claim_hash: BytesN<32>, note: String) -> u64 {
         from.require_auth();
+        if note.len() > MAX_NOTE_BYTES {
+            panic_with_error!(&env, Error::NoteTooLong);
+        }
 
         // Per-day cap (temporary storage auto-GCs old days).
         let day = env.ledger().timestamp() / DAY_SECS;
